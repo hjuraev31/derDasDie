@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KopfKino: Ultimate</title>
+    <style>
+        :root {
+            --primary: #6200ea;
+            --secondary: #03dac6;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333;
+            --wrong: #ff5252;
+            --correct: #4caf50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        h2 { margin: 0; font-size: 1.5rem; }
+        #stats { font-size: 0.9rem; opacity: 0.9; margin-top: 5px; }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        /* Modes Navigation */
+        .nav-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            width: 100%;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            border: none;
+            padding: 10px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-mode { background: #e0e0e0; color: #333; flex: 1; text-align: center; }
+        .btn-mode.active { background: var(--primary); color: white; }
+
+        /* --- SHARED STYLES --- */
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+        }
+
+        .level-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .level-card:active { transform: scale(0.98); }
+        .level-title { font-size: 1.2rem; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
+        .level-range { font-size: 0.9rem; color: #666; }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #666;
+            align-items: center;
+        }
+
+        .btn-quit {
+            background: transparent;
+            color: #888;
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+        }
+
+        select.mode-select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            background: #fff;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .german-word { font-size: 2rem; font-weight: bold; color: var(--primary); margin-bottom: 15px; }
+        
+        /* --- TYPING SPECIFIC --- */
+        .input-answer {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        
+        .input-answer:focus { outline: none; border-color: var(--primary); }
+        .input-answer.wrong { border-color: var(--wrong); background-color: #ffebee; }
+        .input-answer.correct { border-color: var(--correct); background-color: #e8f5e9; }
+
+        .char-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .btn-char {
+            background: #ddd;
+            color: #333;
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-check {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+        }
+
+        .feedback-box {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* --- FLASHCARD STYLES --- */
+        .card-container { perspective: 1000px; width: 100%; height: 320px; cursor: pointer; margin-bottom: 20px; }
+        .card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 15px; }
+        .card.flipped { transform: rotateY(180deg); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--card-bg); border-radius: 15px; padding: 20px; box-sizing: border-box; text-align: center; }
+        .card-back { transform: rotateY(180deg); background-color: #fff9c4; border: 2px solid #fbc02d; }
+        .german-sentence { font-style: italic; color: #555; font-size: 1.1rem; line-height: 1.4; }
+        .ru-translation { font-size: 1.8rem; font-weight: bold; margin-bottom: 15px; color: #333; }
+        .mnemonic-label { font-size: 0.8rem; text-transform: uppercase; color: #777; margin-bottom: 5px; }
+        .ru-mnemonic { font-size: 1.1rem; color: #d81b60; line-height: 1.4; }
+        .controls { display: flex; gap: 20px; width: 100%; justify-content: center; }
+        .btn-action { width: 120px; padding: 15px; color: white; }
+        .btn-bad { background: var(--wrong); }
+        .btn-good { background: var(--correct); }
+
+        /* --- QUIZ STYLES --- */
+        #quiz-options { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+        .btn-quiz-opt { background: white; border: 2px solid #ddd; padding: 15px; text-align: center; font-size: 1.1rem; border-radius: 10px; }
+        
+        /* RESULT SCREEN */
+        .result-box { background: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; }
+        .result-circle { width: 120px; height: 120px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; margin: 20px auto; }
+        .btn-home { background: var(--secondary); color: black; margin-top: 15px; width: 100%; padding: 15px; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>🧠 KopfKino</h2>
+    <div id="stats">Loading...</div>
+</header>
+
+<main>
+    <div class="nav-buttons">
+        <button class="btn btn-mode active" onclick="switchMode('flashcard')">Cards</button>
+        <button class="btn btn-mode" onclick="switchMode('test')">Quiz</button>
+        <button class="btn btn-mode" onclick="switchMode('typing')">Typing</button>
+    </div>
+
+    <!-- ================= VIEW 1: FLASHCARDS ================= -->
+    <div id="flashcard-view" style="width: 100%;">
+        <div id="flashcard-menu">
+            <h3>Flashcard Levels</h3>
+            <div id="flashcard-level-grid" class="level-grid"></div>
+        </div>
+
+        <div id="flashcard-game" class="hidden">
+            <div class="game-header">
+                <button class="btn btn-quit" onclick="quitFlashcardLevel()">Back</button>
+                <span id="fc-counter">1 / 100</span>
+            </div>
+            <div class="card-container" onclick="flipCard()">
+                <div class="card" id="active-card">
+                    <div class="card-face card-front">
+                        <div class="german-word" id="fc-word">Loading...</div>
+                        <div class="german-sentence" id="fc-sentence">...</div>
+                        <p style="margin-top:30px; font-size:0.8rem; color:#aaa; position: absolute; bottom: 20px;">(Tap to flip)</p>
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="ru-translation" id="fc-translation">...</div>
+                        <div class="mnemonic-label">Mnemonic</div>
+                        <div class="ru-mnemonic" id="fc-mnemonic">...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-action btn-bad" onclick="rateWord('hard')">Hard</button>
+                <button class="btn btn-action btn-good" onclick="rateWord('easy')">Easy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= VIEW 2: QUIZ (BUTTONS) ================= -->
+    <div id="test-view" class="hidden" style="width: 100%;">
+        <div id="quiz-menu">
+            <h3>Quiz Levels</h3>
+            <select id="quiz-mode-select" class="mode-select">
+                <option value="de_to_ru">🇩🇪 German ⮕ 🇷🇺 Russian</option>
+                <option value="ru_to_de">🇷🇺 Russian ⮕ 🇩🇪 German</option>
+                <option value="mixed" selected>🔀 Mixed / Random</option>
+            </select>
+            <div id="quiz-level-grid" class="level-grid"></div>
+        </div>
+
+        <div id="quiz-game-screen" class="hidden" style="width: 100%;">
+            <div class="game-header">
+                <button class="btn btn-quit" onclick="resetQuizUI()">Quit</button>
+                <span id="quiz-progress">1 / 100</span>
+                <span id="quiz-score-live">Score: 0</span>
+            </div>
+            <p id="quiz-question" class="german-word" style="text-align: center; margin-bottom: 25px;"></p>
+            <div id="quiz-options"></div>
+            <p id="quiz-feedback" style="text-align: center; height: 20px; font-weight: bold; margin-top:10px;"></p>
+        </div>
+
+        <div id="quiz-result-screen" class="result-box hidden">
+            <h3>Level Complete!</h3>
+            <div class="result-circle" id="final-score-circle">80%</div>
+            <p id="final-detail">Result details...</p>
+            <button class="btn btn-home" onclick="resetQuizUI()">Back to Levels</button>
+        </div>
+    </div>
+
+    <!-- ================= VIEW 3: TYPING TEST ================= -->
+    <div id="typing-view" class="hidden" style="width: 100%;">
+        <!-- A. Menu -->
+        <div id="typing-menu">
+            <h3>Typing Levels</h3>
+            <select id="typing-mode-select" class="mode-select">
+                <option value="ru_to_de">🇷🇺 Russian ⮕ 🇩🇪 German (Spelling)</option>
+                <option value="de_to_ru">🇩🇪 German ⮕ 🇷🇺 Russian (Trans)</option>
+            </select>
+            <div id="typing-level-grid" class="level-grid"></div>
+        </div>
+
+        <!-- B. Game -->
+        <div id="typing-game-screen" class="hidden" style="width: 100%;">
+            <div class="game-header">
+                <button class="btn btn-quit" onclick="resetTypingUI()">Quit</button>
+                <span id="typing-progress">1 / 100</span>
+                <span id="typing-score-live">Score: 0</span>
+            </div>
+
+            <p id="typing-question" class="german-word" style="text-align: center; margin-bottom: 15px; font-size:1.5rem"></p>
+            
+            <input type="text" id="typing-input" class="input-answer" placeholder="Type answer here..." autocomplete="off">
+            
+            <div id="char-helpers" class="char-buttons hidden">
+                <button class="btn btn-char" onclick="addChar('ä')">ä</button>
+                <button class="btn btn-char" onclick="addChar('ö')">ö</button>
+                <button class="btn btn-char" onclick="addChar('ü')">ü</button>
+                <button class="btn btn-char" onclick="addChar('ß')">ß</button>
+            </div>
+
+            <button class="btn btn-check" id="btn-typing-action" onclick="checkTypingAnswer()">Check</button>
+
+            <div id="typing-feedback" class="feedback-box hidden"></div>
+        </div>
+
+        <!-- C. Result -->
+        <div id="typing-result-screen" class="result-box hidden">
+            <h3>Level Complete!</h3>
+            <div class="result-circle" id="typing-final-score-circle">80%</div>
+            <p id="typing-final-detail">Result details...</p>
+            <button class="btn btn-home" onclick="resetTypingUI()">Back to Levels</button>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // --- APP CONFIG ---
+    let vocabData = [];
+    let progressData = {}; 
+    const BATCH_SIZE = 100;
+
+    // --- STATES ---
+    let flashcardState = { queue: [], current: 0 };
+    let quizState = { queue: [], total: 0, current: 0, score: 0, mode: 'mixed' };
+    let typingState = { queue: [], total: 0, current: 0, score: 0, mode: 'ru_to_de', awaitingNext: false };
+    
+    // --- INIT ---
+    window.onload = async () => {
+        loadProgress();
+        await loadVocab();
+        renderStats();
+        if(vocabData.length > 0) generateGrids();
+        
+        // Setup Enter key for typing
+        document.getElementById("typing-input").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                checkTypingAnswer();
+            }
+        });
+    };
+
+    async function loadVocab() {
+        try {
+            const response = await fetch('vocab.json');
+            vocabData = await response.json();
+        } catch (error) { alert("Error: vocab.json not found."); }
+    }
+
+    function generateGrids() {
+        const totalLevels = Math.ceil(vocabData.length / BATCH_SIZE);
+        
+        const fcGrid = document.getElementById('flashcard-level-grid');
+        const qGrid = document.getElementById('quiz-level-grid');
+        const tGrid = document.getElementById('typing-level-grid');
+        
+        fcGrid.innerHTML = ''; qGrid.innerHTML = ''; tGrid.innerHTML = '';
+
+        for (let i = 0; i < totalLevels; i++) {
+            const start = i * BATCH_SIZE + 1;
+            const end = Math.min((i + 1) * BATCH_SIZE, vocabData.length);
+            const html = `<div class="level-title">Level ${i + 1}</div><div class="level-range">Words ${start} - ${end}</div>`;
+
+            const createCard = (onClick) => {
+                const d = document.createElement('div');
+                d.className = 'level-card';
+                d.innerHTML = html;
+                d.onclick = onClick;
+                return d;
+            };
+
+            fcGrid.appendChild(createCard(() => startFlashcardLevel(i)));
+            qGrid.appendChild(createCard(() => startQuizLevel(i)));
+            tGrid.appendChild(createCard(() => startTypingLevel(i)));
+        }
+    }
+
+    function loadProgress() {
+        const stored = localStorage.getItem('kopfkino_progress');
+        if (stored) progressData = JSON.parse(stored);
+    }
+    function saveProgress() {
+        localStorage.setItem('kopfkino_progress', JSON.stringify(progressData));
+        renderStats();
+    }
+
+    // ================= FLASHCARDS =================
+    function startFlashcardLevel(batchIndex) {
+        const start = batchIndex * BATCH_SIZE;
+        const chunk = vocabData.slice(start, start + BATCH_SIZE);
+        flashcardState.queue = [...chunk].sort(() => 0.5 - Math.random());
+        flashcardState.current = 0;
+        document.getElementById('flashcard-menu').classList.add('hidden');
+        document.getElementById('flashcard-game').classList.remove('hidden');
+        loadCard();
+    }
+
+    function loadCard() {
+        if (!flashcardState.queue.length) return;
+        if (flashcardState.current >= flashcardState.queue.length) flashcardState.current = 0;
+        const item = flashcardState.queue[flashcardState.current];
+        const card = document.getElementById('active-card');
+        card.classList.remove('flipped');
+        document.getElementById('fc-counter').textContent = `${flashcardState.current + 1} / ${flashcardState.queue.length}`;
+        document.getElementById('fc-word').textContent = item.word;
+        document.getElementById('fc-sentence').textContent = item.sentence || ""; 
+        document.getElementById('fc-translation').textContent = item.translation_ru;
+        document.getElementById('fc-mnemonic').textContent = item.sentence_mnemonics_ru;
+    }
+
+    function flipCard() { document.getElementById('active-card').classList.toggle('flipped'); }
+
+    function rateWord(d) {
+        const item = flashcardState.queue[flashcardState.current];
+        if (!progressData[item.word]) progressData[item.word] = { reviewCount: 0, status: 'new' };
+        progressData[item.word].reviewCount++;
+        progressData[item.word].status = d === 'easy' ? 'mastered' : 'learning';
+        saveProgress();
+        flashcardState.current++;
+        setTimeout(() => loadCard(), 200);
+    }
+
+    function quitFlashcardLevel() {
+        document.getElementById('flashcard-game').classList.add('hidden');
+        document.getElementById('flashcard-menu').classList.remove('hidden');
+    }
+
+    // ================= MULTIPLE CHOICE QUIZ =================
+    function startQuizLevel(batchIndex) {
+        const chunk = vocabData.slice(batchIndex * BATCH_SIZE, (batchIndex + 1) * BATCH_SIZE);
+        const shuffled = [...chunk].sort(() => 0.5 - Math.random());
+        quizState = {
+            queue: shuffled, total: shuffled.length, current: 0, score: 0,
+            mode: document.getElementById('quiz-mode-select').value
+        };
+        document.getElementById('quiz-menu').classList.add('hidden');
+        document.getElementById('quiz-result-screen').classList.add('hidden');
+        document.getElementById('quiz-game-screen').classList.remove('hidden');
+        renderQuizQuestion();
+    }
+
+    function renderQuizQuestion() {
+        if (quizState.current >= quizState.total) { showQuizResults(); return; }
+        const item = quizState.queue[quizState.current];
+        let mode = quizState.mode === 'mixed' ? (Math.random() < 0.5 ? 'de_to_ru' : 'ru_to_de') : quizState.mode;
+        
+        let qText = mode === 'de_to_ru' ? item.word : item.translation_ru;
+        let ansKey = mode === 'de_to_ru' ? 'translation_ru' : 'word';
+
+        document.getElementById('quiz-question').textContent = qText;
+        document.getElementById('quiz-progress').textContent = `${quizState.current + 1} / ${quizState.total}`;
+        document.getElementById('quiz-score-live').textContent = `Score: ${quizState.score}`;
+        document.getElementById('quiz-feedback').textContent = "";
+
+        let options = [item];
+        while (options.length < 3) {
+            let rnd = vocabData[Math.floor(Math.random() * vocabData.length)];
+            if (!options.find(o => o.id === rnd.id)) options.push(rnd);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        const con = document.getElementById('quiz-options');
+        con.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-quiz-opt';
+            btn.textContent = opt[ansKey];
+            btn.onclick = () => handleQuizAnswer(opt.id, item.id, btn);
+            con.appendChild(btn);
+        });
+    }
+
+    function handleQuizAnswer(selId, corrId, btn) {
+        const btns = document.querySelectorAll('.btn-quiz-opt');
+        btns.forEach(b => b.disabled = true);
+        if (selId === corrId) {
+            quizState.score++;
+            btn.style.background = 'var(--correct)'; btn.style.color = 'white';
+        } else {
+            btn.style.background = 'var(--wrong)'; btn.style.color = 'white';
+        }
+        setTimeout(() => { quizState.current++; renderQuizQuestion(); }, 800);
+    }
+
+    function showQuizResults() {
+        document.getElementById('quiz-game-screen').classList.add('hidden');
+        document.getElementById('quiz-result-screen').classList.remove('hidden');
+        const pct = Math.round((quizState.score / quizState.total) * 100);
+        document.getElementById('final-score-circle').textContent = `${pct}%`;
+        document.getElementById('final-detail').textContent = `${quizState.score} / ${quizState.total}`;
+    }
+
+    function resetQuizUI() {
+        document.getElementById('quiz-result-screen').classList.add('hidden');
+        document.getElementById('quiz-game-screen').classList.add('hidden');
+        document.getElementById('quiz-menu').classList.remove('hidden');
+    }
+
+    // ================= TYPING GAME =================
+    function startTypingLevel(batchIndex) {
+        const chunk = vocabData.slice(batchIndex * BATCH_SIZE, (batchIndex + 1) * BATCH_SIZE);
+        const shuffled = [...chunk].sort(() => 0.5 - Math.random());
+        typingState = {
+            queue: shuffled, total: shuffled.length, current: 0, score: 0,
+            mode: document.getElementById('typing-mode-select').value,
+            awaitingNext: false
+        };
+        document.getElementById('typing-menu').classList.add('hidden');
+        document.getElementById('typing-result-screen').classList.add('hidden');
+        document.getElementById('typing-game-screen').classList.remove('hidden');
+        renderTypingQuestion();
+    }
+
+    function renderTypingQuestion() {
+        if (typingState.current >= typingState.total) { showTypingResults(); return; }
+        
+        typingState.awaitingNext = false;
+        const item = typingState.queue[typingState.current];
+        const mode = typingState.mode; // 'ru_to_de' or 'de_to_ru'
+
+        // Show/Hide Special Chars if target is German
+        if (mode === 'ru_to_de') {
+            document.getElementById('char-helpers').classList.remove('hidden');
+        } else {
+            document.getElementById('char-helpers').classList.add('hidden');
+        }
+
+        const qText = mode === 'ru_to_de' ? item.translation_ru : item.word;
+        document.getElementById('typing-question').textContent = qText;
+        document.getElementById('typing-progress').textContent = `${typingState.current + 1} / ${typingState.total}`;
+        document.getElementById('typing-score-live').textContent = `Score: ${typingState.score}`;
+        
+        // Reset Inputs
+        const input = document.getElementById('typing-input');
+        input.value = '';
+        input.disabled = false;
+        input.className = 'input-answer';
+        input.focus();
+
+        const btn = document.getElementById('btn-typing-action');
+        btn.textContent = "Check";
+        btn.style.background = "var(--primary)";
+
+        document.getElementById('typing-feedback').classList.add('hidden');
+    }
+
+    function checkTypingAnswer() {
+        if (typingState.awaitingNext) {
+            // "Next" was clicked
+            typingState.current++;
+            renderTypingQuestion();
+            return;
+        }
+
+        const item = typingState.queue[typingState.current];
+        const userVal = document.getElementById('typing-input').value.trim().toLowerCase();
+        
+        let correctVal = typingState.mode === 'ru_to_de' ? item.word : item.translation_ru;
+        
+        // Normalize checking (case insensitive)
+        const isCorrect = userVal === correctVal.toLowerCase();
+
+        const feedback = document.getElementById('typing-feedback');
+        const input = document.getElementById('typing-input');
+        const btn = document.getElementById('btn-typing-action');
+
+        feedback.classList.remove('hidden');
+        input.disabled = true;
+
+        if (isCorrect) {
+            typingState.score++;
+            input.classList.add('correct');
+            feedback.textContent = "Correct! ✅";
+            feedback.style.background = "#e8f5e9";
+            feedback.style.color = "green";
+        } else {
+            input.classList.add('wrong');
+            feedback.innerHTML = `Wrong! ❌<br>Answer: <span style="font-size:1.2rem">${correctVal}</span>`;
+            feedback.style.background = "#ffebee";
+            feedback.style.color = "#d32f2f";
+        }
+
+        // Change button to Next
+        btn.textContent = "Next Word ➡";
+        btn.style.background = "#333";
+        typingState.awaitingNext = true;
+    }
+
+    function addChar(char) {
+        const input = document.getElementById('typing-input');
+        input.value += char;
+        input.focus();
+    }
+
+    function showTypingResults() {
+        document.getElementById('typing-game-screen').classList.add('hidden');
+        document.getElementById('typing-result-screen').classList.remove('hidden');
+        const pct = Math.round((typingState.score / typingState.total) * 100);
+        document.getElementById('typing-final-score-circle').textContent = `${pct}%`;
+        document.getElementById('typing-final-detail').textContent = `${typingState.score} / ${typingState.total}`;
+    }
+
+    function resetTypingUI() {
+        document.getElementById('typing-result-screen').classList.add('hidden');
+        document.getElementById('typing-game-screen').classList.add('hidden');
+        document.getElementById('typing-menu').classList.remove('hidden');
+    }
+
+    // --- UTILS ---
+    function switchMode(mode) {
+        document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Hide All
+        document.getElementById('flashcard-view').classList.add('hidden');
+        document.getElementById('test-view').classList.add('hidden');
+        document.getElementById('typing-view').classList.add('hidden');
+
+        // Reset All UIs to Menu
+        quitFlashcardLevel();
+        resetQuizUI();
+        resetTypingUI();
+
+        // Show Selected
+        if (mode === 'flashcard') document.getElementById('flashcard-view').classList.remove('hidden');
+        else if (mode === 'test') document.getElementById('test-view').classList.remove('hidden');
+        else if (mode === 'typing') document.getElementById('typing-view').classList.remove('hidden');
+    }
+
+    function renderStats() {
+        if(!vocabData.length) return;
+        const learned = Object.values(progressData).filter(i => i.status === 'mastered').length;
+        document.getElementById('stats').textContent = `Mastered: ${learned} / ${vocabData.length}`;
+    }
+</script>
+
+</body>
+</html>

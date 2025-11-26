@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deutsch Learner</title>
+    <style>
+        :root {
+            --primary: #6200ea;
+            --secondary: #03dac6;
+            --bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        /* Modes Navigation */
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-mode {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-mode.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Flashcard Styles */
+        .card-container {
+            perspective: 1000px;
+            width: 100%;
+            height: 300px;
+            cursor: pointer;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 15px;
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background-color: #fff9c4; /* Light yellow for mnemonic feel */
+            border: 2px solid #fbc02d;
+        }
+
+        .german-word { font-size: 1.5rem; font-weight: bold; color: var(--primary); margin-bottom: 10px; }
+        .german-sentence { font-style: italic; color: #555; }
+        
+        .ru-translation { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; }
+        .mnemonic-label { font-size: 0.8rem; text-transform: uppercase; color: #777; margin-bottom: 5px; }
+        .ru-mnemonic { font-size: 1.1rem; color: #d81b60; }
+
+        /* Controls */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-action {
+            background: var(--secondary);
+            color: #000;
+            width: 100px;
+            padding: 15px;
+        }
+
+        .btn-bad { background: #ef5350; color: white; }
+        .btn-good { background: #66bb6a; color: white; }
+
+        /* Hidden Classes */
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>🇩🇪 Deutsch Master</h2>
+    <div id="stats">Words Learned: 0</div>
+</header>
+
+<main>
+    <div class="nav-buttons">
+        <button class="btn btn-mode active" onclick="switchMode('flashcard')">Flashcards</button>
+        <button class="btn btn-mode" onclick="switchMode('test')">Quiz Mode</button>
+    </div>
+
+    <!-- FLASHCARD VIEW -->
+    <div id="flashcard-view">
+        <div class="card-container" onclick="flipCard()">
+            <div class="card" id="active-card">
+                <div class="card-face card-front">
+                    <div class="german-word" id="fc-word">Loading...</div>
+                    <div class="german-sentence" id="fc-sentence">...</div>
+                    <p style="margin-top:20px; font-size:0.8rem; color:#aaa">(Tap to flip)</p>
+                </div>
+                <div class="card-face card-back">
+                    <div class="ru-translation" id="fc-translation">...</div>
+                    <div class="mnemonic-label">Mnemonic</div>
+                    <div class="ru-mnemonic" id="fc-mnemonic">...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-action btn-bad" onclick="rateWord('hard')">Hard</button>
+            <button class="btn btn-action btn-good" onclick="rateWord('easy')">Easy</button>
+        </div>
+    </div>
+
+    <!-- TEST VIEW (Simple Placeholder) -->
+    <div id="test-view" class="hidden">
+        <h3>Quiz Mode</h3>
+        <p id="quiz-question" class="german-word"></p>
+        <div id="quiz-options" style="display:flex; flex-direction:column; gap:10px; width:100%;">
+            <!-- Buttons injected by JS -->
+        </div>
+        <p id="quiz-result" style="height: 20px; font-weight: bold;"></p>
+        <button class="btn btn-action" onclick="generateQuiz()" style="margin-top:20px;">Next</button>
+    </div>
+
+</main>
+
+<script>
+    // --- APP STATE ---
+    let vocabData = [];
+    let progressData = {}; // This acts as your 'local DB'
+    let currentCardIndex = 0;
+    
+    // --- INITIALIZATION ---
+    window.onload = async () => {
+        loadProgress();
+        await loadVocab();
+        renderStats();
+        loadCard(currentCardIndex);
+    };
+
+    // 1. Load Vocab JSON
+    async function loadVocab() {
+        try {
+            const response = await fetch('vocab.json');
+            vocabData = await response.json();
+        } catch (error) {
+            alert("Error loading vocab.json. Make sure you are running on a local server (VS Code Live Server).");
+            console.error(error);
+        }
+    }
+
+    // 2. Load Progress from LocalStorage (Your "Local DB")
+    function loadProgress() {
+        const stored = localStorage.getItem('deutsch_progress');
+        if (stored) {
+            progressData = JSON.parse(stored);
+        }
+    }
+
+    function saveProgress() {
+        localStorage.setItem('deutsch_progress', JSON.stringify(progressData));
+        renderStats();
+    }
+
+    // --- FLASHCARD LOGIC ---
+    function loadCard(index) {
+        if (vocabData.length === 0) return;
+        
+        // Loop back to start if at end
+        if (index >= vocabData.length) {
+            currentCardIndex = 0;
+            index = 0;
+        }
+
+        const item = vocabData[index];
+        const card = document.getElementById('active-card');
+        
+        // Reset Flip
+        card.classList.remove('flipped');
+
+        // Populate Front
+        document.getElementById('fc-word').textContent = item.word;
+        document.getElementById('fc-sentence').textContent = item.sentence;
+
+        // Populate Back (Using RU Translation + RU Mnemonic as requested)
+        document.getElementById('fc-translation').textContent = item.translation_ru;
+        document.getElementById('fc-mnemonic').textContent = item.sentence_mnemonics_ru;
+    }
+
+    function flipCard() {
+        document.getElementById('active-card').classList.toggle('flipped');
+    }
+
+    function rateWord(difficulty) {
+        const item = vocabData[currentCardIndex];
+        
+        // Update Local DB
+        if (!progressData[item.word]) {
+            progressData[item.word] = { reviewCount: 0, status: 'new' };
+        }
+        
+        progressData[item.word].reviewCount++;
+        progressData[item.word].status = difficulty === 'easy' ? 'mastered' : 'learning';
+        
+        saveProgress();
+
+        // Next Card
+        currentCardIndex++;
+        
+        // Small delay to allow card to unflip visually if desired, 
+        // but here we just load next immediately for speed
+        setTimeout(() => loadCard(currentCardIndex), 200);
+    }
+
+    // --- QUIZ LOGIC ---
+    function generateQuiz() {
+        if (vocabData.length < 2) return;
+        
+        // Pick random correct word
+        const correctIndex = Math.floor(Math.random() * vocabData.length);
+        const correctItem = vocabData[correctIndex];
+
+        document.getElementById('quiz-question').textContent = correctItem.word;
+        document.getElementById('quiz-result').textContent = "";
+
+        // Generate options (Correct + 2 Wrong)
+        let options = [correctItem];
+        while (options.length < 3) {
+            let random = vocabData[Math.floor(Math.random() * vocabData.length)];
+            if (!options.includes(random)) options.push(random);
+        }
+
+        // Shuffle options
+        options.sort(() => Math.random() - 0.5);
+
+        // Render Buttons
+        const container = document.getElementById('quiz-options');
+        container.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.style.background = 'white';
+            btn.style.border = '1px solid #ccc';
+            btn.textContent = opt.translation_ru; // Test understanding of RU translation
+            btn.onclick = () => checkAnswer(opt.id, correctItem.id, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selectedId, correctId, btnElement) {
+        const resultEl = document.getElementById('quiz-result');
+        if (selectedId === correctId) {
+            btnElement.style.background = '#66bb6a';
+            btnElement.style.color = 'white';
+            resultEl.textContent = "Correct! " + vocabData.find(x=>x.id === correctId).sentence;
+            resultEl.style.color = 'green';
+        } else {
+            btnElement.style.background = '#ef5350';
+            btnElement.style.color = 'white';
+            resultEl.textContent = "Wrong!";
+            resultEl.style.color = 'red';
+        }
+    }
+
+    // --- UTILS ---
+    function switchMode(mode) {
+        // Toggle Buttons
+        document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+
+        // Toggle Views
+        if (mode === 'flashcard') {
+            document.getElementById('flashcard-view').classList.remove('hidden');
+            document.getElementById('test-view').classList.add('hidden');
+            loadCard(currentCardIndex);
+        } else {
+            document.getElementById('flashcard-view').classList.add('hidden');
+            document.getElementById('test-view').classList.remove('hidden');
+            generateQuiz();
+        }
+    }
+
+    function renderStats() {
+        const learned = Object.values(progressData).filter(i => i.status === 'mastered').length;
+        document.getElementById('stats').textContent = `Learned: ${learned} / ${vocabData.length}`;
+    }
+</script>
+
+</body>
+</html>
